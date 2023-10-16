@@ -1,3 +1,4 @@
+import cv2
 import numpy as np  
 from scipy.ndimage import zoom 
 from scipy.signal import convolve2d
@@ -10,7 +11,6 @@ from skimage.color import rgb2gray
 from sklearn.neighbors import KDTree
 from scipy.signal import fftconvolve
 from sklearn.cluster import KMeans
-
 
 
 def lemire_nd_maxengine(A, idx, window, shapeflag):
@@ -601,7 +601,7 @@ def decomposition(I, alpha, ii, beta, gamma):
         N = np.real(ifft2(NN))
         print(np.sum(np.abs(prev_F - F)) / (H * W))
 
-        if np.sum(np.abs(prev_F - F)) / (H * W) < 10 ** (1):
+        if np.sum(np.abs(prev_F - F)) / (H * W) > 10000000 ** (1):
             break
 
     # Normalize F
@@ -853,7 +853,8 @@ def Defogging(input_img):
     brightness = 0.5
 
     # Convert to double (equivalent of im2double)
-    input_img = input_img.astype(np.float32) / 255.0
+    
+    input_img = input_img.astype(np.float32) / np.max(input_img)
 
     alpha = 20000
     beta = 0.1
@@ -875,19 +876,25 @@ def Defogging(input_img):
 #     A = estimate_airlight(adjust_fog_removal, F)
 #     A = A.reshape(1, 1, 3)
     A = np.array(estimate_airlight(adjust_fog_removal, F)).reshape(1, 1, 3)
-
     
     fog_free_layer, _ = non_local_dehazing(F, A)
     
     Gm = Compensation(fog_free_layer, G)
 
     result = fog_free_layer + brightness * Gm
+    
 
     gray = np.median(result, axis=-1) * 255  # equivalent of rgb2gray
     if np.median(gray) < 128:
         result = fog_free_layer + Gm
 
-    return result
+    Output_img = result.copy()
+    Output_img = (Output_img-Output_img.min())/(Output_img.max()-Output_img.min())
+    Output_img = Output_img*-1
+    Output_img = Output_img+1
+    Output_img = Output_img*255
+    Output_img = Output_img.astype(np.uint8)
+    return Output_img
 
 
 def imgaussfilt(I, sigma, filter_size=None, padding='replicate', filter_domain='auto'):
@@ -1022,8 +1029,3 @@ def ifft2(f, m_out=None, n_out=None, symmetry='nonsymmetric'):
     x = np.fft.ifft2(f)
     
     return x
-
-
-
-
-
