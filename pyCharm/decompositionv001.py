@@ -45,6 +45,46 @@ def rgb2gray(rgb_image):
 
 def is_grayscale(image):
     return len(image.shape) < 3 or (len(image.shape) == 3 and image.shape[2] == 1)
+    
+
+def show_images_side_by_side_3(img1, title1, img2, title2, img3, title3):
+    # Load images
+    # Check if images are grayscale
+    is_img1_grayscale = is_grayscale(img1)
+    is_img2_grayscale = is_grayscale(img2)
+    is_img3_grayscale = is_grayscale(img3)
+
+    # Create a figure with three subplots
+    fig, axes = plt.subplots(1, 3, figsize=(30, 10))
+
+    # Display the first image with title
+    if is_img1_grayscale:
+        axes[0].imshow(img1, cmap='gray')
+    else:
+        axes[0].imshow(img1)
+    axes[0].set_title(title1, fontsize=20)
+    axes[0].axis('off')
+
+    # Display the second image with title
+    if is_img2_grayscale:
+        axes[1].imshow(img2, cmap='gray')
+    else:
+        axes[1].imshow(img2)
+    axes[1].set_title(title2, fontsize=20)
+    axes[1].axis('off')
+
+    # Display the third image with title
+    if is_img3_grayscale:
+        axes[2].imshow(img3, cmap='gray')
+    else:
+        axes[2].imshow(img3)
+    axes[2].set_title(title3, fontsize=20)
+    axes[2].axis('off')
+
+    # Show the figure
+    plt.show()
+    
+    
 def gradient_weight(I):
     if len(I.shape) == 3 and I.shape[2] == 3:  # If the image has RGB channels
         I = np.dot(I[..., :3], [0.2989, 0.5870, 0.1140])  # Convert to grayscale using standard weights
@@ -94,7 +134,25 @@ def convolve_rgb(image, kernel):
 
     return temp
 
+def print_stats(value, var_name):
+    """
+    Prints the minimum, maximum, and mean value of the given variable.
 
+    Args:
+    value (iterable): The variable whose stats are to be printed.
+    var_name (str): The name of the variable.
+    """
+    try:
+        min_val = value.min()
+        max_val = value.max()
+        mean_val = value.mean()
+        print(f"Stats for {var_name}:")
+        print(f"  Min: {min_val}")
+        print(f"  Max: {max_val}")
+        print(f"  Mean: {mean_val}")
+    except Exception as e:
+        print(f"Error calculating stats for {var_name}: {e}")
+        
 def decomposition(I, alpha, ii, beta, gamma):
     alpha = float(alpha)
     ii = float(ii)
@@ -102,9 +160,25 @@ def decomposition(I, alpha, ii, beta, gamma):
     gamma = float(gamma)
     I = np.clip(I, 0, 1)
     gray = rgb2gray(I)
+    print_stats(gray, 'gray')
+    mat_contents = scipy.io.loadmat(r'.\mat_data_file\rgb2gray.mat')
+    gray_mat = mat_contents['gray']
+    print("MSE and MAE of rgb2gray are {} and {}, respectively".format(mse(gray_mat, gray), mae(gray_mat,gray)))
+    
     H, W, D = I.shape
 
     weight_x, weight_y = gradient_weight(I)
+    print_stats(weight_x, 'weight_x')
+    print_stats(weight_y, 'weight_y')
+    mat_contents = scipy.io.loadmat(r'.\mat_data_file\Gradient_weight.mat')
+    weight_y_mat = mat_contents['weight_y']
+    print("MSE and MAE of weight_y are {} and {}, respectively".format(mse(weight_y_mat, weight_y), mae(weight_y_mat, weight_y)))
+    
+    weight_x_mat = mat_contents['weight_x']
+    print("MSE and MAE of weight_x are {} and {}, respectively".format(mse(weight_x_mat, weight_x), mae(weight_x_mat,weight_x)))
+    
+    
+    
     # f1 = np.array([[1, -1]])
     # f2 = np.array([[1], [-1]])
     f1 = np.array([[0, 0, 0], [1, -1, 0], [0, 0, 0]])
@@ -113,9 +187,19 @@ def decomposition(I, alpha, ii, beta, gamma):
 
     gray = rgb2gray(I)
     I_filt = gaussian_filter(gray, sigma=10)
+    print_stats(I_filt, 'imgaussian')
+    mat_contents = scipy.io.loadmat(r'.\mat_data_file\imgaussfilt.mat')
+    I_filt_mat = mat_contents['I_filt']
+    print("MSE and MAE of imgaussfilt are {} and {}, respectively".format(mse(I_filt_mat, I_filt), mae(I_filt_mat, I_filt)))
+    
     delta_I = I - I_filt[..., np.newaxis]
 
     otfFx = psf2otf(f1, (H, W))
+    print_stats(np.abs(otfFx), 'psf2otf')
+    mat_contents = scipy.io.loadmat(r'.\mat_data_file\psf2otf.mat')
+    otfFx_mat = mat_contents['otfFx']
+    print("MSE and MAE of psf2otf are {} and {}, respectively".format(mse(np.abs(otfFx_mat), np.abs(otfFx)), mae(np.abs(otfFx_mat), np.abs(otfFx))))
+    
     otfFy = psf2otf(f2, (H, W))
     otfL = psf2otf(f4, (H, W))
 
@@ -137,6 +221,16 @@ def decomposition(I, alpha, ii, beta, gamma):
     for channel in range(I.shape[2]):
         Ix[:, :, channel] = signal.convolve2d(I[:, :, channel], f1, mode='same')
         Iy[:, :, channel] = signal.convolve2d(I[:, :, channel], f2, mode='same')
+        
+    print_stats(np.abs(Ix), 'imFilter (Ix)')
+    print_stats(np.abs(Iy), 'imFilter (Iy)')
+    
+    mat_contents = scipy.io.loadmat(r'.\mat_data_file\imfilter.mat')
+    Ix_mat = mat_contents['Ix']
+    Iy_mat = mat_contents['Iy']
+    print("MSE and MAE of imfilter (Ix) are {} and {}, respectively".format(mse(Ix_mat.flatten(), Ix.flatten()), mae(Ix_mat.flatten(), Ix.flatten())))
+    print("MSE and MAE of imfilter (Iy) are {} and {}, respectively".format(mse(Iy_mat.flatten(), Iy.flatten()), mae(Iy_mat.flatten(), Iy.flatten())))
+    
 
     Normin_I = fft2((np.concatenate((Ix[:, -1:, :] - Ix[:, :1, :], -np.diff(Ix, 1, 1)), axis=1) +
                      np.concatenate((Iy[-1:, :, :] - Iy[:1, :, :], -np.diff(Iy, 1, 0)), axis=0)).T).T
@@ -232,7 +326,7 @@ def show_images_side_by_side(img1, title1, img2, title2):
     is_img2_grayscale = is_grayscale(img2)
 
     # Create a figure with two subplots
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(20, 10))
 
     # Display the first image with title
     if is_img1_grayscale:
